@@ -18,11 +18,16 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
+import org.elasticsearch.search.sort.SortOrder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static cn.itcast.hotel.constants.HotelConstants.MAPPING_TEMPLATE;
 
@@ -41,14 +46,44 @@ public class HotelSearchTest {
         this.client.close();
     }
 
+//    private void handleResponse(SearchResponse response) {
+//        SearchHits searchHits = response.getHits();
+//        long total = searchHits.getTotalHits().value;
+//        System.out.println("共搜索到" + total + "条数据");
+//        SearchHit[] hits = searchHits.getHits();
+//        for (SearchHit hit : hits) {
+//            String json = hit.getSourceAsString();
+//            HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
+//            System.out.println("hotelDoc = " + hotelDoc);
+//        }
+//    }
+
     private void handleResponse(SearchResponse response) {
+        // 4.解析响应
         SearchHits searchHits = response.getHits();
+        // 4.1.获取总条数
         long total = searchHits.getTotalHits().value;
         System.out.println("共搜索到" + total + "条数据");
+        // 4.2.文档数组
         SearchHit[] hits = searchHits.getHits();
+        // 4.3.遍历
         for (SearchHit hit : hits) {
+            // 获取文档source
             String json = hit.getSourceAsString();
+            // 反序列化
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
+            // 获取高亮结果
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            if (!CollectionUtils.isEmpty(highlightFields)) {
+                // 根据字段名获取高亮结果
+                HighlightField highlightField = highlightFields.get("name");
+                if (highlightField != null) {
+                    // 获取高亮值
+                    String name = highlightField.getFragments()[0].string();
+                    // 覆盖非高亮结果
+                    hotelDoc.setName(name);
+                }
+            }
             System.out.println("hotelDoc = " + hotelDoc);
         }
     }
@@ -115,6 +150,49 @@ public class HotelSearchTest {
         boolQuery.filter(QueryBuilders.rangeQuery("price").lte(250));
         request.source().query(boolQuery);
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponse(response);
+    }
+
+    /**
+     * 分页排序
+     */
+    @Test
+    void testPageAndSort() throws IOException {
+        // 页码，每页大小
+        int page = 1, size = 5;
+
+        // 1.准备Request
+        SearchRequest request = new SearchRequest("hotel");
+        // 2.准备DSL
+        // 2.1.query
+        request.source().query(QueryBuilders.matchAllQuery());
+        // 2.2.排序 sort
+        request.source().sort("price", SortOrder.ASC);
+        // 2.3.分页 from、size
+        request.source().from((page - 1) * size).size(5);
+        // 3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        // 4.解析响应
+        handleResponse(response);
+
+    }
+
+
+    /**
+     * 高亮
+     */
+    @Test
+    void testHighlight() throws IOException {
+        // 1.准备Request
+        SearchRequest request = new SearchRequest("hotel");
+        // 2.准备DSL
+        // 2.1.query
+        request.source().query(QueryBuilders.matchQuery("all", "如家"));
+        // 2.2.高亮
+        request.source().highlighter(new HighlightBuilder().field("name").requireFieldMatch(false));
+        // 3.发送请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        // 4.解析响应
         handleResponse(response);
     }
 }
