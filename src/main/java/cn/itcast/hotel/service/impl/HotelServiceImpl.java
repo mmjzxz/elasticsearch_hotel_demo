@@ -35,22 +35,13 @@ public class HotelServiceImpl extends ServiceImpl<HotelMapper, Hotel> implements
     public PageResult search(RequestParams requestParams) {
         try {
             SearchRequest request = new SearchRequest("hotel");
-            String key = requestParams.getKey();
-            BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
-            if (key == null || "".equals(key)) {
-//                boolQuery.must(QueryBuilders.matchAllQuery());
-                request.source().query(QueryBuilders.matchAllQuery());
-            } else {
-//                boolQuery.must(QueryBuilders.matchQuery("all", key));
-                request.source().query(QueryBuilders.matchQuery("all", key));
-            }
-//            request.source().query(boolQuery);
+            buildBasicQuery(requestParams, request);
             //分页
             int page = requestParams.getPage();
             int size = requestParams.getSize();
             request.source().from((page - 1) * size).size(size);
-
             //发送请求
+            System.out.println(request);
             SearchResponse response = client.search(request, RequestOptions.DEFAULT);
             return handleResponse(response);
         } catch (IOException e) {
@@ -58,7 +49,40 @@ public class HotelServiceImpl extends ServiceImpl<HotelMapper, Hotel> implements
         }
     }
 
+    private void buildBasicQuery(RequestParams requestParams, SearchRequest request) {
+        //构建BoolQuery
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        String key = requestParams.getKey();
+        if (key == null || "".equals(key)) {
+            boolQuery.must(QueryBuilders.matchAllQuery());
+        } else {
+            boolQuery.must(QueryBuilders.matchQuery("all", key));
+        }
+        //城市条件
+        if (requestParams.getCity() != null && !requestParams.getCity().equals("")) {
+            boolQuery.filter(QueryBuilders.termQuery("city", requestParams.getCity()));
+        }
+        //品牌
+        if (requestParams.getBrand() != null && !requestParams.getBrand().equals("")) {
+            boolQuery.filter(QueryBuilders.termQuery("brand", requestParams.getBrand()));
+        }
+        //星级
+        if (requestParams.getStarName() != null && !requestParams.getStarName().equals("")) {
+            boolQuery.filter(QueryBuilders.termQuery("starName", requestParams.getStarName()));
+        }
+        //价格
+        if (requestParams.getMinPrice() != null && requestParams.getMaxPrice() != null) {
+            boolQuery.filter(QueryBuilders
+                    .rangeQuery("price")
+                    .gte(requestParams.getMinPrice())
+                    .lte(requestParams.getMaxPrice())
+            );
+        }
+        request.source().query(boolQuery);
+    }
+
     private PageResult handleResponse(SearchResponse response) {
+        System.out.println(response);
         SearchHits searchHits = response.getHits();
         long total = searchHits.getTotalHits().value;
         SearchHit[] hits = searchHits.getHits();

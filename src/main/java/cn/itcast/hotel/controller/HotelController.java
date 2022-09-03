@@ -25,4 +25,9 @@ public class HotelController {
     public PageResult search(@RequestBody RequestParams requestParams) {
         return hotelService.search(requestParams);
     }
+
+    /**
+     * 过滤
+     */
+//    @PostMapping()
 }
