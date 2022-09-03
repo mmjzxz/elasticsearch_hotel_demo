@@ -25,6 +25,11 @@ public class HotelDoc {
      */
     private Object distance;
 
+    /**
+     * 广告标记
+     */
+    private Boolean isAD;
+
     public HotelDoc(Hotel hotel) {
         this.id = hotel.getId();
         this.name = hotel.getName();
