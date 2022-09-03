@@ -12,10 +12,15 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.sort.SortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -40,8 +45,17 @@ public class HotelServiceImpl extends ServiceImpl<HotelMapper, Hotel> implements
             int page = requestParams.getPage();
             int size = requestParams.getSize();
             request.source().from((page - 1) * size).size(size);
+
+            //排序
+            String location = requestParams.getLocation();
+            if (location != null && !location.equals("")) {
+                request.source().sort(SortBuilders
+                        .geoDistanceSort("location", new GeoPoint(location))
+                        .order(SortOrder.ASC)
+                        .unit(DistanceUnit.KILOMETERS));
+            }
+
             //发送请求
-            System.out.println(request);
             SearchResponse response = client.search(request, RequestOptions.DEFAULT);
             return handleResponse(response);
         } catch (IOException e) {
@@ -82,14 +96,21 @@ public class HotelServiceImpl extends ServiceImpl<HotelMapper, Hotel> implements
     }
 
     private PageResult handleResponse(SearchResponse response) {
-        System.out.println(response);
         SearchHits searchHits = response.getHits();
+        //获取总数据
         long total = searchHits.getTotalHits().value;
+        //文档数组
         SearchHit[] hits = searchHits.getHits();
         List<HotelDoc> hotels = new ArrayList<>();
         for (SearchHit hit : hits) {
+            //获取文档source
             String json = hit.getSourceAsString();
             HotelDoc hotelDoc = JSON.parseObject(json, HotelDoc.class);
+            Object[] sortValues = hit.getSortValues();
+            if (sortValues.length > 0) {
+                Object sortValue = sortValues[0];
+                hotelDoc.setDistance(sortValue);
+            }
             hotels.add(hotelDoc);
         }
         return new PageResult(total, hotels);
