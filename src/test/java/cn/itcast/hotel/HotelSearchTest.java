@@ -18,6 +18,11 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortOrder;
@@ -27,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import static cn.itcast.hotel.constants.HotelConstants.MAPPING_TEMPLATE;
@@ -112,7 +118,7 @@ public class HotelSearchTest {
     void testMultiMatch() throws IOException {
         SearchRequest request = new SearchRequest("hotel");
         request.source().query(QueryBuilders.multiMatchQuery("如家", "name", "business"));
-        request.source().query(QueryBuilders.multiMatchQuery("如家", "name","business"));
+        request.source().query(QueryBuilders.multiMatchQuery("如家", "name", "business"));
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
         handleResponse(response);
     }
@@ -126,7 +132,7 @@ public class HotelSearchTest {
     void testTerm() throws IOException {
         SearchRequest request = new SearchRequest("hotel");
         request.source().query(QueryBuilders.termQuery("city", "上海"));
-        request.source().query(QueryBuilders.termQuery("city","上海"));
+        request.source().query(QueryBuilders.termQuery("city", "上海"));
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
         handleResponse(response);
     }
@@ -146,7 +152,7 @@ public class HotelSearchTest {
     void testBool() throws IOException {
         SearchRequest request = new SearchRequest("hotel");
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
-        boolQuery.must(QueryBuilders.termQuery("city","上海"));
+        boolQuery.must(QueryBuilders.termQuery("city", "上海"));
         boolQuery.filter(QueryBuilders.rangeQuery("price").lte(250));
         request.source().query(boolQuery);
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
@@ -177,7 +183,6 @@ public class HotelSearchTest {
 
     }
 
-
     /**
      * 高亮
      */
@@ -194,5 +199,27 @@ public class HotelSearchTest {
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
         // 4.解析响应
         handleResponse(response);
+    }
+
+    @Test
+    void testAggregation() throws IOException {
+        SearchRequest request = new SearchRequest("hotel");
+        request.source().size(0);
+        request.source().aggregation(AggregationBuilders
+                .terms("brandAgg")
+                .field("brand")
+                .size(20));
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        handleResponseAggregation(response);
+    }
+
+    private void handleResponseAggregation(SearchResponse response) {
+        Aggregations aggregations = response.getAggregations();
+        Terms brandTerms = aggregations.get("brandAgg");
+        List<? extends Terms.Bucket> buckets = brandTerms.getBuckets();
+        for (Terms.Bucket bucket : buckets) {
+            String key = bucket.getKeyAsString();
+            System.out.println(key);
+        }
     }
 }

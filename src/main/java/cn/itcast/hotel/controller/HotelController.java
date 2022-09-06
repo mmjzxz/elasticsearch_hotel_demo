@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * @author LEGION
  */
@@ -26,8 +29,8 @@ public class HotelController {
         return hotelService.search(requestParams);
     }
 
-    /**
-     * 过滤
-     */
-//    @PostMapping()
+    @PostMapping("/filters")
+    public Map<String, List<String>> getFilters(@RequestBody RequestParams requestParams) {
+        return hotelService.getFilters(requestParams);
+    }
 }
