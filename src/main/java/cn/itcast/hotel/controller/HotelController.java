@@ -4,10 +4,7 @@ import cn.itcast.hotel.pojo.PageResult;
 import cn.itcast.hotel.pojo.RequestParams;
 import cn.itcast.hotel.service.IHotelService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -23,14 +20,34 @@ public class HotelController {
 
     /**
      * 搜索酒店数据
+     *
+     * @param requestParams
+     * @return
      */
     @PostMapping("/list")
     public PageResult search(@RequestBody RequestParams requestParams) {
         return hotelService.search(requestParams);
     }
 
+    /**
+     * 酒店过滤
+     *
+     * @param requestParams
+     * @return
+     */
     @PostMapping("/filters")
     public Map<String, List<String>> getFilters(@RequestBody RequestParams requestParams) {
         return hotelService.getFilters(requestParams);
+    }
+
+    /**
+     * 搜索框自动补全
+     *
+     * @param prefix
+     * @return
+     */
+    @GetMapping("/suggestion")
+    public List<String> getSuggestions(@RequestParam("key") String prefix) {
+        return hotelService.getSuggestions(prefix);
     }
 }
